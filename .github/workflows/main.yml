@@ -1,4 +1,4 @@
-name: Sync draw-io folder from external repo
+name: Sync draw-io folder from WhiskeyTang0F0xtr0t
 
 on:
   workflow_dispatch:     # manuell auslösbar
