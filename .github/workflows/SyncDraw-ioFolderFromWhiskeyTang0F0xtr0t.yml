@@ -6,33 +6,32 @@ on:
     - cron: '0 0 * * *'   # täglich Mitternacht
 
 jobs:
-  clone-folder:
+  sync-drawio:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout target repo
+      - name: Checkout own repo
         uses: actions/checkout@v4
 
-      - name: Install SVN
-        run: sudo apt-get update && sudo apt-get install -y subversion
-
-      - name: Remove old folder
-        run: rm -rf external/unifi-drawio
-
-      - name: Checkout draw-io folder from external repo (via SVN)
+      - name: Clone external repo
         run: |
-          mkdir -p external
-          svn export https://github.com/WhiskeyTang0F0xtr0t/unifi/trunk/draw-io external/unifi-drawio
+          git clone --depth 1 https://github.com/WhiskeyTang0F0xtr0t/unifi.git temp/
 
-      - name: Commit if folder changed
+      - name: Copy draw‑io folder
+        run: |
+          rm -rf external/unifi-drawio
+          mkdir -p external
+          cp -r temp/draw-io external/unifi-drawio
+          rm -rf temp/
+
+      - name: Commit changes if any
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           if [[ `git status --porcelain` ]]; then
             git add external/unifi-drawio
-            git commit -m "Automated sync: unifi/draw-io updated"
+            git commit -m "Sync draw‑io from WhiskeyTang0F0xtr0t/unifi"
             git push
           else
-            echo "No changes detected"
+            echo "No changes"
           fi
