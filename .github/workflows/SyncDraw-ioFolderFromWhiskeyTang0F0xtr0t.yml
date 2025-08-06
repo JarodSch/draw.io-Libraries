@@ -1,43 +1,54 @@
-name: Sync draw-io folder from external repo
+# .github/workflows/sync-draw-io.yml
+name: Sync draw-io Libraries
 
 on:
-  workflow_dispatch:       # manuell auslösbar
   schedule:
-    - cron: '0 0 * * *'     # täglich um Mitternacht
+    # Synct jede Stunde um Minute 0
+    - cron: '0 * * * *'
+  # Manuelles Triggern über GitHub UI
+  workflow_dispatch: {}
 
 jobs:
-  sync-drawio:
+  sync-draw-io:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout this repository
+      # 1. Ziel-Repo auschecken
+      - name: Checkout target repo
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+
+      # 2. Quell-Repo auschecken
+      - name: Checkout source repo (unifi)
+        uses: actions/checkout@v4
+        with:
+          repository: WhiskeyTang0F0xtr0t/unifi
+          path: source-unifi
+          fetch-depth: 0
+
+      # 3. draw-io-Unterordner kopieren
+      - name: Sync draw-io folder
+        run: |
+          mkdir -p draw-io
+          rsync -av --delete source-unifi/draw-io/ draw-io/
+
+      # 4. Prüfen, ob es Änderungen gibt
+      - name: Detect changes
+        id: git-check
+        run: |
+          echo "::set-output name=changed::$(git status --porcelain)"
+
+      # 5. Bei Änderungen: Pull Request erstellen
+      - name: Create Pull Request
+        if: steps.git-check.outputs.changed != ''
+        uses: peter-evans/create-pull-request@v5
+        with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Clone external repo (shallow)
-        run: |
-          git clone --depth 1 https://github.com/WhiskeyTang0F0xtr0t/unifi.git temp-unifi
-
-      - name: Copy draw-io folder into external/
-        run: |
-          rm -rf external/unifi-drawio
-          mkdir -p external
-          cp -r temp-unifi/draw-io external/unifi-drawio
-          rm -rf temp-unifi
-
-      - name: Commit and push if changes exist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if [[ `git status --porcelain` ]]; then
-            echo "Changes detected – committing"
-            git add external/unifi-drawio
-            git commit -m "Sync: update draw-io from unifi repo"
-            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
-          else
-            echo "No changes to commit"
-          fi
+          commit-message: "🔄 Sync draw-io from unifi repo"
+          branch: sync/draw-io
+          title: "Sync draw-io aus WhiskeyTang0F0xtr0t/unifi"
+          body: |
+            Dieser Pull Request synchronisiert den aktuellen Stand von `draw-io`
+            aus dem Repository `WhiskeyTang0F0xtr0t/unifi`.
+          labels: sync, automation
