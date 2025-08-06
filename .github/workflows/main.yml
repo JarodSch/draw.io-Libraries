@@ -1,0 +1,35 @@
+name: Sync draw-io folder from external repo
+
+on:
+  workflow_dispatch:     # manuell auslösbar
+  schedule:
+    - cron: '0 0 * * *'   # täglich Mitternacht
+
+jobs:
+  clone-folder:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+
+      - name: Remove old folder
+        run: rm -rf external/unifi-drawio
+
+      - name: Checkout draw-io folder from external repo (via SVN)
+        run: |
+          mkdir -p external
+          svn export https://github.com/WhiskeyTang0F0xtr0t/unifi/trunk/draw-io external/unifi-WhiskeyTang0F0xtr0t
+
+      - name: Commit if folder changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [[ `git status --porcelain` ]]; then
+            git add external/unifi-drawio
+            git commit -m "Automated sync: unifi/draw-io updated"
+            git push
+          else
+            echo "No changes detected"
+          fi
