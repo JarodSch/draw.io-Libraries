@@ -1,7 +1,7 @@
-name: Sync draw-io folder from WhiskeyTang0F0xtr0t
+name: Sync draw-io folder from external repo
 
 on:
-  workflow_dispatch:       # manuelles Auslösen
+  workflow_dispatch:       # manuell auslösbar
   schedule:
     - cron: '0 0 * * *'     # täglich um Mitternacht
 
@@ -10,33 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout own repository
+      - name: Checkout this repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clone external repository
+      - name: Clone external repo (shallow)
         run: |
-          git clone --depth 1 https://github.com/WhiskeyTang0F0xtr0t/unifi.git temp/
+          git clone --depth 1 https://github.com/WhiskeyTang0F0xtr0t/unifi.git temp-unifi
 
-      - name: Copy draw-io folder
+      - name: Copy draw-io folder into external/
         run: |
           rm -rf external/unifi-drawio
           mkdir -p external
-          cp -r temp/draw-io external/unifi-drawio
-          rm -rf temp/
+          cp -r temp-unifi/draw-io external/unifi-drawio
+          rm -rf temp-unifi
 
       - name: Commit and push if changes exist
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           if [[ `git status --porcelain` ]]; then
+            echo "Changes detected – committing"
             git add external/unifi-drawio
-            git commit -m "Automated sync: update draw-io from unifi repo"
-            git push https://x-access-token:$TOKEN@github.com/${{ github.repository }}.git HEAD:main
+            git commit -m "Sync: update draw-io from unifi repo"
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
           else
-            echo "No changes detected"
+            echo "No changes to commit"
           fi
